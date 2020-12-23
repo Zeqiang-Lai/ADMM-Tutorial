@@ -1,0 +1,315 @@
+\documentclass[10pt]{article}
+\usepackage{minted, ctex, url}
+\usepackage{amsthm, amsmath, amssymb, amsfonts}
+\usepackage{graphicx, float, xcolor, subcaption}
+%\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage[a4paper,left=3cm,right=3cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage[toc,page]{appendix}
+\usepackage{rotating}
+\usepackage[hyperref=true,backend=biber,sorting=none,backref=true]{biblatex}
+\addbibresource{ref.bib}
+
+\title{ADMM Tutorial}
+\author{赖泽强}
+\newtheorem{theorem}{\hspace{2em}Theorem}[section]
+\newtheorem{definition}{\hspace{2em}Definition}[section]
+\newtheorem{lemma}{\hspace{2em}Lemma}[section]
+\newtheorem{proposition}{\hspace{2em}Proposition}[section]
+\newtheorem{corollary}{\hspace{2em}Corollary}[section]
+\newcommand{\todo}[1]{{\color{red}[TODO: #1]}}
+
+\newcommand{\F}{\mathbb F}
+\newcommand{\E}{\mathbb E}
+\newcommand{\R}{\mathbb R}
+\newcommand{\Q}{\mathbb Q}
+\newcommand{\Z}{\mathbb Z}
+\newcommand{\N}{\mathbb N}
+\newcommand{\Prob}{\mathbb P}
+
+\newcommand{\textand}{\quad \text{and} \quad}
+\newcommand{\textor}{\quad \text{or} \quad}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\norm}[1]{\left \Vert #1 \right \Vert}
+\newcommand{\set}[1]{\left \{ #1 \right \}}
+\newcommand{\tr}{\text{tr}} % trace
+\newcommand{\Var}{\text{Var}} 
+\newcommand{\diag}{\text{diag}} 
+\newcommand{\inner}[2]{\left \langle #1, #2 \right \rangle}
+
+
+
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{Basic}
+
+ADMM是针对优化问题的一种解法。优化问题则是说，我们希望在给定一些约束的情况下，去寻找一个解来最小化一个我们定义的目标函数。这个过程可以形式化地定义为：
+
+$$
+P: \min _{x \in D} f(x)
+$$
+
+其中f是目标函数，D是由约束条件划定的x的取值范围。
+
+ADMM尝试解决的则是一种特殊的优化问题。在这个问题中，我们的目标函数是一个均方误差，约束条件则是一个L1范数。我们使用朗格朗日法将有约束问题转化为无约束问题，就变成了公式\ref{eq-1}所示的形式。
+
+\begin{equation}
+\min _{x} \frac{1}{2} \sum_{i=1}^{n}\left(y_{i}-x_{i}\right)^{2}+\lambda \sum_{(i, j) \in E}\left|x_{i}-x_{j}\right|
+\label{eq-1}
+\end{equation}
+
+
+通常我们将这个问题称为 \textbf{2d fused lasso} 或 \textbf{2d total variation denoising} 问题
+
+
+我们可以使用各种各样的优化算法来解这个特殊的问题，例如Proximal gradient descent，Coordinate descent，但ADMM是这些算法中收敛最快的（即需要迭代次数少）\footnote{需要注意的是，ADMM在这个问题上快，不代表它在其它问题上也快。}。
+
+\subsection{Vanilla ADMM}
+
+那么ADMM是怎么做的呢？ADMM先是引入了一个新的变量v，并约束$x=v$，然后解公式\ref{eq-1}所示的无约束问题，就变成了解公式\ref{eq-2}所示的有约束问题。
+
+\begin{equation}
+(\widehat{\boldsymbol{x}}, \widehat{\boldsymbol{v}})=\underset{\boldsymbol{x}, \boldsymbol{v}}{\operatorname{argmin}} \quad f(\boldsymbol{x})+\lambda g(\boldsymbol{v}), \quad \text { subject to } \boldsymbol{x}=\boldsymbol{v}
+\label{eq-2}
+\end{equation}
+
+然后我们用增广朗格朗日法再将其变成无约束问题，变成公式\ref{eq-3}的形式\footnote{为什么要变成这种形式？一个直观的解释是新的函数更凸，而凸函数在优化是具有很好的性质，如收敛快，更容易获得更优解等。参见：交替方向乘子法（ADMM）算法的流程和原理是怎样的？ - 大大大的v的回答 - 知乎 \url{https://www.zhihu.com/question/36566112/answer/118715721}}。
+
+\begin{equation}
+\mathcal{L}(\boldsymbol{x}, \boldsymbol{v}, \boldsymbol{u})=f(\boldsymbol{x})+\lambda g(\boldsymbol{v})+\boldsymbol{u}^{T}(\boldsymbol{x}-\boldsymbol{v})+\frac{\rho}{2}\|\boldsymbol{x}-\boldsymbol{v}\|^{2}
+\label{eq-3}	
+\end{equation}
+
+优化这个方程可以使用分步优化的方法，即先选取一个优化变量，然后固定其它变量，对刚刚选取的变量进行优化，依次选取所有需要优化的变量重复进行。这个过程可以用公式\ref{eq-4}描述。
+
+\begin{equation}
+\begin{array}{l}
+\boldsymbol{x}^{(k+1)}=\underset{\boldsymbol{x} \in \mathbb{R}^{n}}{\operatorname{argmin}} \quad f(\boldsymbol{x})+\frac{\rho}{2}\left\|\boldsymbol{x}-\tilde{\boldsymbol{x}}^{(k)}\right\|^{2} \\
+\boldsymbol{v}^{(k+1)}=\underset{\boldsymbol{v} \in \mathbb{R}^{n}}{\operatorname{argmin}} \quad \lambda g(\boldsymbol{v})+\frac{\rho}{2}\left\|\boldsymbol{v}-\widetilde{\boldsymbol{v}}^{(k)}\right\|^{2} \\
+\overline{\boldsymbol{u}}^{(k+1)}=\overline{\boldsymbol{u}}^{(k)}+\left(\boldsymbol{x}^{(k+1)}-\boldsymbol{v}^{(k+1)}\right)
+\end{array}
+\label{eq-4}
+\end{equation}
+
+其中第三个优化$u$的式子，我们是要让u最大，用这种方式强迫x和v更接近。然后因为我们求导有解析解，我们可以直接使用梯度上升法。
+
+至于ADMM这种做法为什么会获得更快的收敛速度，我还没有深入研究。
+
+\subsection{Plug-and-Play ADMM}
+
+对于公式\ref{eq-4}里的第二个式子，定义$\sigma = \sqrt{\lambda \rho}$，我们可以将其改写成：
+
+\begin{equation}
+\boldsymbol{v}^{(k+1)}=\underset{\boldsymbol{v} \in \mathbb{R}^{n}}{\operatorname{argmin}} \quad g(\boldsymbol{v})+\frac{1}{2 \sigma^{2}}\left\|\boldsymbol{v}-\tilde{\boldsymbol{v}}^{(k)}\right\|^{2}
+\label{admm-v}
+\end{equation}
+
+直观的，我们可以把这个优化过程看出一个降噪的过程，其中$\sigma$是高斯噪声的强度(我们假设噪声是高斯噪声)。我们可以把v当成降噪后的图像，$v^{k}$看出带噪声的图像。$g(v)$是说我们降噪后的图像要是一个图像（满足先验g)，后面一项则是说降噪后的图像和原图像要接近。
+
+因此，我们可以使用一个降噪器去替代这个优化过程。每一步优化，我们都将$v^{k}$输入一个降噪器获得$v^{k+1}$。
+
+具体为什么说这个形式很像降噪，我们需要先回顾一下降噪的优化算法是什么样的。
+
+对于一个降噪问题，我们形式化为如下的优化问题：
+
+\begin{equation}
+\widehat{\boldsymbol{x}}_{\operatorname{map}}=\arg \max _{\boldsymbol{x}} p(\boldsymbol{x} \mid \boldsymbol{y})
+\end{equation}
+
+其中y是输入的噪声图像，x是去噪图像。
+
+使用贝叶斯公式，加负号，我们可以将其转换成如下的优化问题：
+
+\begin{equation}
+\widehat{\boldsymbol{x}}_{\operatorname{map}}=\arg \min _{\boldsymbol{x}}\{-\ln p(\boldsymbol{y} \mid \boldsymbol{x})-\ln p(\boldsymbol{x})\}
+\label{denoise}
+\end{equation}
+
+如果我们假设噪声是高斯噪声，那么$e=y-x$应该服从正态分布,即$\boldsymbol{e} \sim \mathcal{N}\left(\mathbf{0}, \sigma_{e}^{2} \boldsymbol{I}\right)$。
+
+因为$p(y|x)$是给定原始图像，噪声图像出现的概率，既然我们知道噪声的概率分布，那$p(y|x)$事实上应该就是噪声出现的概率。因此我们可以将正态分布的公式代入，求解出$-ln p(y|x)$：
+
+$$- logP(y|x) = -log(\frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(y-x)^2}{2\sigma}})=\frac{(y-x)^2}{2\sigma}+log(\sigma\sqrt{2\pi})\propto \frac{(y-x)^2}{2\sigma}$$
+
+到这里，就不难看出为什么我们说ADMM优化v的步骤可以看成一个降噪过程了，对比公式\ref{admm-v}和公式\ref{denoise}，前者的g(v)就相当于后者的$-lnp(x)$，前者的后一个平方差项和后者则是完全一致的。
+
+\subsection{Tuning Free PnP ADMM}
+
+在PnP ADMM中，观察公式\ref{eq-4}，我们知道这个算法存在两个超参数$\rho$和$\sigma$。Tuning Free PnP ADMM\cite{wei2020tuning}这个算法就是使用强化学习的方法去自动寻找\textbf{每一步迭代}最适合的参数。
+
+因为每一步迭代都可以使用不同的超参数，因此有时候可以获得比人工调参，甚至穷举\footnote{穷举是指在最开始穷举得到一个最优参数，但每一步迭代参数相同，因为每一步迭代都穷举并不现实。}更优的结果。
+
+当然，这个算法最大的好处还是不用自动化了调参的过程。
+
+\section{Examples}
+
+\subsection{ADMM 1D TV Denosing}
+
+1D TV Denosing问题描述如下，其中F是一个Difference matrix，主对角线全是1，主对角线上方元素是-1。
+
+\begin{equation}
+	\operatorname{minimize} \enspace \frac{1}{2} \|x-y\|_{2}^{2}+\lambda\|F x\|_{1}
+\end{equation}
+
+ADMM形式：
+
+\begin{equation}
+\begin{array}{ll}
+\operatorname{minimize} & \frac{1}{2} \|x-y\|_{2}^{2}+\lambda\|z\|_{1} \\
+\text { subject to } & F x-z=0
+\end{array}
+\end{equation}
+
+增广朗格朗日形式：
+\begin{equation}
+L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \nu ^{ T }(Fx-z)+\frac{\rho}{2}\|Fx-z\|_{2}^{2}
+\label{eq-3}
+\end{equation}
+
+令$\mu = \nu / \rho$，可以验证：
+\begin{equation}
+\nu ^{ T }(Fx-z)+\frac{\rho}{2}\| Fx-z\|_{2}^{2}= \frac{\rho}{2}\|Fx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
+\end{equation}
+
+因此，新的增广朗格朗日形式可以写成：
+
+\begin{equation}
+L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \frac{\rho}{2}\|Fx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
+\end{equation}
+
+因此，ADMM的分布优化步骤为：
+
+\begin{equation}
+\begin{aligned}
+x ^{(k+1)} &=\arg \min _{ x }\left(\frac{1}{2} \|x-y\|_{2}^{2}+\frac{\rho}{2}\left\| Fx-z ^{(k)}+ \mu ^{(k)}\right\|_{2}^{2}\right) \\
+z ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z\|_{1}+\frac{\rho}{2}\left\| Fx ^{(k+1)}- z + \mu ^{(k)}\right\|_{2}^{2}\right) \\
+\nu ^{(k+1)} &= \nu ^{(k)}+ Fx ^{(k+1)}- z ^{(k+1)}
+\end{aligned}
+\label{eq-6}
+\end{equation}
+
+这三个优化步骤都有解析解，如下(牢记：$\mu = \nu / \rho$）：
+
+\begin{equation}
+\begin{aligned}
+x^{k+1} &:=\left(I+\rho F^{T} F\right)^{-1}\left(y+\rho F^{T}\left(z^{k}-\mu^{k}\right)\right) \\
+z^{k+1} &:=T_{\lambda / \rho}\left(F x^{k+1}+\mu^{k}\right) \\
+\nu^{k+1} &:=\nu^{k}+F x^{k+1}-z^{k+1}
+\end{aligned}
+\end{equation}
+
+具体含义和推导见下：
+
+\paragraph{求解x: }
+
+优化x等价于求解一个最小二乘问题。推导如下：
+
+最小二乘法的目标函数为：
+
+\begin{equation}
+L(D, \vec{\beta})=\|X \vec{\beta}-Y\|^{2}
+\end{equation}
+
+有解析解：
+
+\begin{equation}
+	(X^TX)^{-1}X^TY
+\end{equation}
+
+改写公式\ref{eq-6}中x的目标函数：
+
+\begin{equation}
+	x ^{(k+1)} =\arg \min _{ x }\left(\|x-y\|_{2}^{2}+ \left\|\sqrt{\rho}Fx- \sqrt{\rho}(z ^{(k)}- \mu ^{(k)})\right\|_{2}^{2}\right)
+\end{equation}
+
+我们把这两个二范数合起来写成矩阵形式：
+
+\begin{equation}
+\min _{x}\left\|\left[\begin{array}{c} 
+I \\
+\sqrt{\rho} F
+\end{array}\right] x -\left[\begin{array}{c} 
+y \\
+\sqrt{\rho}\left( z ^{(k)}- \mu ^{(k)}\right)
+\end{array}\right]\right\|_{2}^{2}
+\end{equation}
+
+把x当成$\beta$, 把式子前面的矩阵当成$X$，把后面的矩阵当成$Y$，可知，优化x等价于一个最小二乘问题。
+
+代入最小二乘法的解析解公式：
+
+\begin{equation}
+\begin{aligned}
+x ^{(k+1)} &=\left( I +\rho F^TF \right)^{-1}\left[ I, \sqrt{\rho} F^T \right]\left[\begin{array}{c} 
+y \\
+\left.\sqrt{\rho}\left( z ^{(k)}- \mu ^{(k)}\right)\right]
+\end{array}\right] \\
+&=\left( I +\rho F^TF \right)^{-1}\left( y +\rho F^T\left( z ^{(k)}- \mu ^{(k)}\right)\right)
+\end{aligned}
+\end{equation}
+
+\paragraph{求解z: }
+
+z是一个一维向量，将z的目标函数展开，令$v=Fx+\mu$, 我们可以得到：
+
+\begin{equation}
+\begin{aligned}
+& \underset{z}{\operatorname{minimize}} \enspace \lambda \sum_{n=1}^{N}|z[n]|+\frac{\rho}{2} \sum_{n=1}^{N}(z[n]-v[n])^{2} \\
+=& \operatorname{minimize}_{ z } \enspace \sum_{n=1}^{N}\left(\lambda|z[n]|+\frac{\rho}{2}(z[n]-v[n])^{2}\right)
+\end{aligned}
+\end{equation}
+
+
+因为z的每一个分量没有关系，我们可以单独优化z的每一个分量：
+
+\begin{equation}
+\underset{z \in R }{\operatorname{minimize}} \enspace \lambda|z|+\frac{\rho}{2}(z-v)^{2}
+\end{equation}
+
+这个函数除了0处处可导，且是个凸函数，导数为
+
+\begin{equation}
+\frac{ d f}{ d z}=\left\{\begin{array}{ll}
+\lambda+z-\rho v, & z>0 \\
+-\lambda+z-\rho v, & z<0
+\end{array}\right.
+\end{equation}
+
+凸函数的极值点就是最值点，因此z的最优解为导数为0的地方。当$|v| > \lambda/\rho$时，导数可以取到0；反之，z等于0时取到导数绝对值最小的位置，即最优解。
+
+\begin{equation}
+z^{\star}=\left\{\begin{array}{ll}
+\rho v-\lambda, & v>\lambda/\rho \\
+0, & |v| \leq \lambda/\rho \\
+\rho v+\lambda, & v<-\lambda/\rho
+\end{array}\right.
+\end{equation}
+
+用$T_\lambda(\cdot)$表示这个函数，则
+
+\begin{equation}
+	z^{(k+1)} = T_{\lambda/\rho}(v) = T_{\lambda/\rho}(Fx+\mu)
+\end{equation}
+
+$T_\lambda(\cdot)$被称为\textbf{soft thresholding} 或 \textbf{shrinkage} operator。
+
+\paragraph{求解$\nu$: } 使用公式\ref{eq-3}和求导即可：
+
+\begin{equation}
+\frac{d\nu}{dL} = (Fx-z)/\rho
+\end{equation}
+
+$\nu$要最大化，使用梯度上升法。
+
+\subsubsection{参数设置}
+
+ADMM 1D TV Denosing就两个超参数 $\lambda$ 和 $\rho$ ，参数设置基本不会影响大致结果，但是要注意的是$\rho$不要小于1，否则可能会造成x,z更新之后过大，出现INF。
+
+\printbibliography
+
+\end{document}
