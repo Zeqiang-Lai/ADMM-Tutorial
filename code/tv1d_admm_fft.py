@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
 from scipy.sparse import spdiags
 
 INF = 9999999999
@@ -17,6 +16,20 @@ def shrink(x, r):
     return np.sign(x) * np.maximum(np.abs(x) - r, 0)
 
 
+def forward_diff(u):
+    out = np.zeros(len(u))
+    out[:-1] = np.diff(u)
+    out[-1] = u[0] - u[-1]
+    return out
+
+
+def backward_diff(u):
+    out = np.zeros(len(u))
+    out[1:] = -np.diff(u)
+    out[0] = u[-1] - u[0]
+    return out
+
+
 def admm_tv_1d(y, lmbda, rho, max_itr=20, tol=1e-4, gamma=1, logging=True):
     # initialize
     length = len(y)
@@ -26,12 +39,9 @@ def admm_tv_1d(y, lmbda, rho, max_itr=20, tol=1e-4, gamma=1, logging=True):
 
     residual = INF
 
-    I = np.identity(length)
-
-    # difference matrix
-    F = get_difference_matrix(length)
-    Ft = np.transpose(F)
-    FtF = Ft @ F
+    eigFtF = abs(np.fft.fft([-1, 1], length)) ** 2
+    D = forward_diff
+    Dt = backward_diff
 
     # main loop
     if logging:
@@ -46,15 +56,15 @@ def admm_tv_1d(y, lmbda, rho, max_itr=20, tol=1e-4, gamma=1, logging=True):
         mu_old = mu
 
         # inversion step
-        rhs = y + rho * Ft @ (z - mu / rho)
-        lhs = I + rho * FtF
-        x = np.linalg.inv(lhs) @ (rhs)
+        rhs = y + rho * Dt(z - mu / rho)
+        lhs = 1 + rho * eigFtF
+        x = np.fft.ifft(np.fft.fft(rhs) / lhs).real
 
         # denoising step
-        z = shrink(F @ x + mu / rho, lmbda / rho)
+        z = shrink(D(x) + mu / rho, lmbda / rho)
 
         # update langrangian multiplier
-        mu = mu + F @ x - z
+        mu = mu + D(x) - z
 
         # update rho
         rho = rho * gamma
@@ -87,7 +97,7 @@ if __name__ == '__main__':
     plt.subplot(3, 1, 2)
     plt.plot(b)
 
-    out = admm_tv_1d(b, lmbda=5, rho=1, max_itr=100)
+    out = admm_tv_1d(b, lmbda=5, rho=1, max_itr=1000)
 
     plt.subplot(3, 1, 3)
     plt.plot(out)
