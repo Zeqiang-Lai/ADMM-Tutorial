@@ -16,8 +16,8 @@ def forward_diff(u):
 def dive(x, y):
     dx = np.diff(x, axis=1)
     dy = np.diff(y, axis=0)
-    dtxy = np.column_stack([x[:, 0] - x[:, -1], dx])
-    dtxy = dtxy + np.row_stack([y[0, :] - y[-1, :], dy])
+    dtxy = np.column_stack([x[:, -1] - x[:, 0], -dx])
+    dtxy = dtxy + np.row_stack([y[-1, :] - y[0, :], -dy])
     return dtxy
 
 
@@ -58,7 +58,7 @@ def admm(y, lam, rho, Nit, tol=1e-5):
         ty1 = y1 / rho + v1
         ty2 = y2 / rho + v2
         tmp = Dt(ty1, ty2)
-        rhs = y + rho * tmp
+        rhs = y - rho * tmp
         lhs = 1 + rho * eigDtD
 
         x = np.fft.fft2(rhs) / lhs
@@ -95,26 +95,16 @@ if __name__ == '__main__':
     gt = plt.imread('House256.png')
     img = plt.imread('house.png')
 
-    # img2 = img * 255
+    plt.subplot(1, 3, 1)
+    plt.imshow(gt, cmap='gray')
 
-    # dux, duy = forward_diff(img2)
-
-    # sigma = 25 / 255.0
-    # g = img + sigma * np.random.randn(*img.shape)
     g = img * 255
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 2)
     plt.imshow(g, cmap='gray')
-    # print(g.shape)
-    # cv2.imwrite('house.png', np.array(255*g, np.uint8))
 
-    lam = 20
-    rho = 2
+    out = admm(g, lam=20, rho=2, Nit=20)
 
-    nit = 20
-
-    out = admm(g, lam, rho, nit)
-
-    plt.subplot(1, 2, 2)
+    plt.subplot(1, 3, 3)
     plt.imshow(np.array(out, dtype=np.int), cmap='gray')
     plt.show()
 
