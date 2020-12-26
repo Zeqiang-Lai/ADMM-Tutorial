@@ -1,4 +1,4 @@
-\documentclass[10pt]{article}
+\documentclass[10pt]{report}
 \usepackage{minted, ctex, url}
 \usepackage{amsthm, amsmath, amssymb, amsfonts}
 \usepackage{graphicx, float, xcolor, subcaption}
@@ -10,8 +10,12 @@
 \usepackage[hyperref=true,backend=biber,sorting=none,backref=true]{biblatex}
 \addbibresource{ref.bib}
 
-\title{ADMM Tutorial}
+\setminted{autogobble=true}
+
+\title{ADMM Tutorial
+     \thanks{Draft version. Working in progress.}}
 \author{赖泽强}
+
 \newtheorem{theorem}{\hspace{2em}Theorem}[section]
 \newtheorem{definition}{\hspace{2em}Definition}[section]
 \newtheorem{lemma}{\hspace{2em}Lemma}[section]
@@ -46,7 +50,7 @@
 \maketitle
 \tableofcontents
 
-\section{Basic}
+\chapter{Introduction}
 
 ADMM是针对优化问题的一种解法。优化问题则是说，我们希望在给定一些约束的情况下，去寻找一个解来最小化一个我们定义的目标函数。这个过程可以形式化地定义为：
 
@@ -69,7 +73,7 @@ ADMM尝试解决的则是一种特殊的优化问题。在这个问题中，我�
 
 我们可以使用各种各样的优化算法来解这个特殊的问题，例如Proximal gradient descent，Coordinate descent，但ADMM是这些算法中收敛最快的（即需要迭代次数少）\footnote{需要注意的是，ADMM在这个问题上快，不代表它在其它问题上也快。}。
 
-\subsection{Vanilla ADMM}
+\section{Vanilla ADMM}
 
 那么ADMM是怎么做的呢？ADMM先是引入了一个新的变量v，并约束$x=v$，然后解公式\ref{eq-1}所示的无约束问题，就变成了解公式\ref{eq-2}所示的有约束问题。
 
@@ -100,7 +104,7 @@ ADMM尝试解决的则是一种特殊的优化问题。在这个问题中，我�
 
 至于ADMM这种做法为什么会获得更快的收敛速度，我还没有深入研究。
 
-\subsection{Plug-and-Play ADMM}
+\section{Plug-and-Play ADMM}
 
 对于公式\ref{eq-4}里的第二个式子，定义$\sigma = \sqrt{\lambda \rho}$，我们可以将其改写成：
 
@@ -138,7 +142,7 @@ $$- logP(y|x) = -log(\frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(y-x)^2}{2\sigma}})=\f
 
 到这里，就不难看出为什么我们说ADMM优化v的步骤可以看成一个降噪过程了，对比公式\ref{admm-v}和公式\ref{denoise}，前者的g(v)就相当于后者的$-lnp(x)$，前者的后一个平方差项和后者则是完全一致的。
 
-\subsection{Tuning Free PnP ADMM}
+\section{Tuning Free PnP ADMM}
 
 在PnP ADMM中，观察公式\ref{eq-4}，我们知道这个算法存在两个超参数$\rho$和$\sigma$。Tuning Free PnP ADMM\cite{wei2020tuning}这个算法就是使用强化学习的方法去自动寻找\textbf{每一步迭代}最适合的参数。
 
@@ -146,14 +150,28 @@ $$- logP(y|x) = -log(\frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(y-x)^2}{2\sigma}})=\f
 
 当然，这个算法最大的好处还是不用自动化了调参的过程。
 
-\section{Examples}
+\chapter{Background}
 
-\subsection{ADMM 1D TV Denosing}
+为了能够读懂后面的Examples，你可能需要补充一点背景知识。如果你对这些知识很熟悉，你可以选择跳过这一章节。如果你不了解这些概念，那也没有关系，你可以选择先看Examples，遇到不懂的时候再回来翻阅这部分内容。
 
-1D TV Denosing问题描述如下，其中F是一个Difference matrix，主对角线全是1，主对角线上方元素是-1。
+\section{Least square problem}
+
+\section{Fourier Transform}
+
+\section{Circular Matrix}
+
+\section{Convolution Theorem}
+
+\chapter{Examples}
+
+\section{ADMM 1D TV Denosing}
+
+\subsection{公式推导}
+
+1D TV Denosing问题描述如下，其中D是一个Difference matrix，主对角线全是1，主对角线上方元素是-1。
 
 \begin{equation}
-	\operatorname{minimize} \enspace \frac{1}{2} \|x-y\|_{2}^{2}+\lambda\|F x\|_{1}
+	\operatorname{minimize} \enspace \frac{1}{2} \|x-y\|_{2}^{2}+\lambda\|D x\|_{1}
 \end{equation}
 
 ADMM形式：
@@ -161,34 +179,35 @@ ADMM形式：
 \begin{equation}
 \begin{array}{ll}
 \operatorname{minimize} & \frac{1}{2} \|x-y\|_{2}^{2}+\lambda\|z\|_{1} \\
-\text { subject to } & F x-z=0
+\text { subject to } & D x-z=0
 \end{array}
 \end{equation}
 
 增广朗格朗日形式：
 \begin{equation}
-L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \nu ^{ T }(Fx-z)+\frac{\rho}{2}\|Fx-z\|_{2}^{2}
+L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \nu ^{ T }(Dx-z)+\frac{\rho}{2}\|Dx-z\|_{2}^{2}
 \label{eq-3}
 \end{equation}
 
 令$\mu = \nu / \rho$，可以验证：
 \begin{equation}
-\nu ^{ T }(Fx-z)+\frac{\rho}{2}\| Fx-z\|_{2}^{2}= \frac{\rho}{2}\|Fx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
+\nu ^{ T }(Dx-z)+\frac{\rho}{2}\| Dx-z\|_{2}^{2}= \frac{\rho}{2}\|Dx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
+\label{eq-sub-aug}
 \end{equation}
 
 因此，新的增广朗格朗日形式可以写成：
 
 \begin{equation}
-L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \frac{\rho}{2}\|Fx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
+L_{\rho}( x , z , \nu )= \frac{1}{2}\|x-y\|_{2}^{2} + \lambda\|z\|_{1}+ \frac{\rho}{2}\|Dx-z+ \mu \|_{2}^{2}-\frac{\rho}{2}\| \mu \|_{2}^{2}
 \end{equation}
 
 因此，ADMM的分布优化步骤为：
 
 \begin{equation}
 \begin{aligned}
-x ^{(k+1)} &=\arg \min _{ x }\left(\frac{1}{2} \|x-y\|_{2}^{2}+\frac{\rho}{2}\left\| Fx-z ^{(k)}+ \mu ^{(k)}\right\|_{2}^{2}\right) \\
-z ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z\|_{1}+\frac{\rho}{2}\left\| Fx ^{(k+1)}- z + \mu ^{(k)}\right\|_{2}^{2}\right) \\
-\nu ^{(k+1)} &= \nu ^{(k)}+ Fx ^{(k+1)}- z ^{(k+1)}
+x ^{(k+1)} &=\arg \min _{ x }\left(\frac{1}{2} \|x^{(k)}-y\|_{2}^{2}+\frac{\rho}{2}\left\| Dx^{(k)}-z ^{(k)}+ \mu ^{(k)}\right\|_{2}^{2}\right) \\
+z ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z^{(k)}\|_{1}+\frac{\rho}{2}\left\| Dx ^{(k+1)}- z^{(k)} + \mu ^{(k)}\right\|_{2}^{2}\right) \\
+\nu ^{(k+1)} &= \nu ^{(k)}+ Dx ^{(k+1)}- z ^{(k+1)}
 \end{aligned}
 \label{eq-6}
 \end{equation}
@@ -197,9 +216,9 @@ z ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z\|_{1}+\frac{\rho}{2}\left\| Fx ^{(
 
 \begin{equation}
 \begin{aligned}
-x^{k+1} &:=\left(I+\rho F^{T} F\right)^{-1}\left(y+\rho F^{T}\left(z^{k}-\mu^{k}\right)\right) \\
-z^{k+1} &:=T_{\lambda / \rho}\left(F x^{k+1}+\mu^{k}\right) \\
-\nu^{k+1} &:=\nu^{k}+F x^{k+1}-z^{k+1}
+x^{k+1} &:=\left(I+\rho D^{T} D\right)^{-1}\left(y+\rho D^{T}\left(z^{k}-\mu^{k}\right)\right) \\
+z^{k+1} &:=T_{\lambda / \rho}\left(D x^{k+1}+\mu^{k}\right) \\
+\nu^{k+1} &:=\nu^{k}+D x^{k+1}-z^{k+1}
 \end{aligned}
 \end{equation}
 
@@ -212,7 +231,7 @@ z^{k+1} &:=T_{\lambda / \rho}\left(F x^{k+1}+\mu^{k}\right) \\
 最小二乘法的目标函数为：
 
 \begin{equation}
-L(D, \vec{\beta})=\|X \vec{\beta}-Y\|^{2}
+L(\vec{\beta})=\|X \vec{\beta}-Y\|^{2}
 \end{equation}
 
 有解析解：
@@ -224,7 +243,7 @@ L(D, \vec{\beta})=\|X \vec{\beta}-Y\|^{2}
 改写公式\ref{eq-6}中x的目标函数：
 
 \begin{equation}
-	x ^{(k+1)} =\arg \min _{ x }\left(\|x-y\|_{2}^{2}+ \left\|\sqrt{\rho}Fx- \sqrt{\rho}(z ^{(k)}- \mu ^{(k)})\right\|_{2}^{2}\right)
+	x ^{(k+1)} =\arg \min _{ x }\left(\|x-y\|_{2}^{2}+ \left\|\sqrt{\rho}Dx- \sqrt{\rho}(z ^{(k)}- \mu ^{(k)})\right\|_{2}^{2}\right)
 \end{equation}
 
 我们把这两个二范数合起来写成矩阵形式：
@@ -232,7 +251,7 @@ L(D, \vec{\beta})=\|X \vec{\beta}-Y\|^{2}
 \begin{equation}
 \min _{x}\left\|\left[\begin{array}{c} 
 I \\
-\sqrt{\rho} F
+\sqrt{\rho} D
 \end{array}\right] x -\left[\begin{array}{c} 
 y \\
 \sqrt{\rho}\left( z ^{(k)}- \mu ^{(k)}\right)
@@ -245,17 +264,17 @@ y \\
 
 \begin{equation}
 \begin{aligned}
-x ^{(k+1)} &=\left( I +\rho F^TF \right)^{-1}\left[ I, \sqrt{\rho} F^T \right]\left[\begin{array}{c} 
+x ^{(k+1)} &=\left( I +\rho D^TD \right)^{-1}\left[ I, \sqrt{\rho} D^T \right]\left[\begin{array}{c} 
 y \\
 \left.\sqrt{\rho}\left( z ^{(k)}- \mu ^{(k)}\right)\right]
 \end{array}\right] \\
-&=\left( I +\rho F^TF \right)^{-1}\left( y +\rho F^T\left( z ^{(k)}- \mu ^{(k)}\right)\right)
+&=\left( I +\rho D^TD \right)^{-1}\left( y +\rho D^T\left( z ^{(k)}- \mu ^{(k)}\right)\right)
 \end{aligned}
 \end{equation}
 
 \paragraph{求解z: }
 
-z是一个一维向量，将z的目标函数展开，令$v=Fx+\mu$, 我们可以得到：
+z是一个一维向量，将z的目标函数展开，令$v=Dx+\mu$, 我们可以得到：
 
 \begin{equation}
 \begin{aligned}
@@ -293,22 +312,315 @@ z^{\star}=\left\{\begin{array}{ll}
 用$T_\lambda(\cdot)$表示这个函数，则
 
 \begin{equation}
-	z^{(k+1)} = T_{\lambda/\rho}(v) = T_{\lambda/\rho}(Fx+\mu)
+	z^{(k+1)} = T_{\lambda/\rho}(v) = T_{\lambda/\rho}(Dx+\mu)
 \end{equation}
 
 $T_\lambda(\cdot)$被称为\textbf{soft thresholding} 或 \textbf{shrinkage} operator。
 
-\paragraph{求解$\nu$: } 使用公式\ref{eq-3}和求导即可：
+\paragraph{求解$\nu$: } 使用公式\ref{eq-3}求导即可：
 
 \begin{equation}
-\frac{d\nu}{dL} = (Fx-z)/\rho
+\frac{d\nu}{dL} = (Dx-z)/\rho
 \end{equation}
 
 $\nu$要最大化，使用梯度上升法。
 
-\subsubsection{参数设置}
+\subsection{DFT优化}
+
+在每一步优化x的时候，我们需要求$I +\rho D^TD$的逆，假设输入$y$是一个n维向量，则$I +\rho D^TD$将是一个$n*n$的矩阵，当n很大的时候，求它的逆是很慢的。
+
+\begin{equation}
+x ^{(k+1)} =\left( I +\rho D^TD \right)^{-1}\left( y +\rho D^T\left( z ^{(k)}- \mu ^{(k)}\right)\right)
+\end{equation}
+
+对这个式子做一个简单的变换，将$\left( I +\rho D^TD \right)^{-1}$移到等式左边。
+
+\begin{equation}
+\left( I +\rho D^TD \right) x ^{(k+1)} = \left( y + \rho  D^T\left( z ^{(k)}- \mu ^{(k)}\right) \right)
+\end{equation}
+
+假设 $\mathcal{F}$ 是 Fourier matrix， $\mathcal{F}^{-1}$ 是 inverse Fourier matrix，对等式两边同时做傅里叶变换\footnote{这里用到了傅里叶变换的矩阵乘表示，以及傅里叶变换的线性性质。}：
+%\url{https://en.wikipedia.org/wiki/Fourier_transform#Linearity}
+
+\begin{equation}
+\left( \mathcal{F}I +\rho \mathcal{F}D^TD \right) x ^{(k+1)} = \left( \mathcal{F}y + \rho \mathcal{F}D^T\left( z ^{(k)}- \mu ^{(k)}\right) \right)
+\end{equation}
+
+对Fourier matrix，有$\mathcal{F}^{-1}F = \mathcal{F}^H\mathcal{F} = I$。使用这个性质对上个式子再做一次变换, 我们有：
+
+\begin{equation}
+\begin{aligned}
+\left( \mathcal{F}I +\rho\mathcal{F}D^TD  \right) \mathcal{F}^H\mathcal{F} x ^{(k+1)} = LHS \\
+\text{=>} 
+\left( \mathcal{F}I\mathcal{F}^H +\rho\mathcal{F}D^TD\mathcal{F}^H \right) \mathcal{F} x ^{(k+1)} = LHS	
+\end{aligned}
+\end{equation}
+
+这里需要用到一个性质，Fourier matrix可以对角化所有的circulant matrix，并且$F^H$的列向量就是这些circulant matrix的特征向量，特征值则是生成circulant matrix的信号的DFT结果。
+
+\begin{equation}
+\begin{aligned}
+\mathcal{F}D\mathcal{F}^H &= \Lambda \\
+\mathcal{F}D^T\mathcal{F}^H &= \Lambda^H \\	
+\mathcal{F}D^TD\mathcal{F}^H &= \mathcal{F}D^T\mathcal{F}^H\mathcal{F}D\mathcal{F}^H = \Lambda^H\Lambda
+\end{aligned}
+\end{equation}
+
+使用上述性质，结合$\mathcal{F}I\mathcal{F}^H = I$，我们有：
+
+\begin{equation}
+\left( I +\rho \Lambda^H\Lambda \right) \mathcal{F} x ^{(k+1)} = \left( \mathcal{F}y + \rho \mathcal{F}D^T\left( z ^{(k)}- \mu ^{(k)}\right) \right)	
+\end{equation}
+
+左右两边左乘$\left( I +\rho \Lambda^H\Lambda \right)^{-1}$，再同时做逆傅里叶变换，有：
+
+\begin{equation}
+x ^{(k+1)} = \mathcal{F}^{-1} \left( I +\rho \Lambda^H\Lambda \right)^{-1} \left( \mathcal{F}y + \rho \mathcal{F}D^T\left( z ^{(k)}- \mu ^{(k)}\right) \right) 	
+\end{equation}
+
+因为$I +\rho \Lambda^H\Lambda$是对角矩阵，它的逆就是对角线各元素取逆。并且一个对角矩阵和向量相乘等价于对角线元素和向量各元素的element-wise的乘法。因此，上式也可以写成：
+
+\begin{equation}
+ x ^{(k+1)} = \mathcal{F}^{-1} \frac{\left( \mathcal{F}y + \rho \mathcal{F}D^T\left( z ^{(k)}- \mu ^{(k)}\right) \right)}{vec\left( I +\rho \Lambda^H\Lambda \right)}
+\label{eq-1d-admm-dft}
+\end{equation}
+
+其中$vec$表示将对角线元素组成一个向量，除法则是element-wise除法。
+
+至此，DFT优化的推导就完成了。通过DFT，我们将时域上十分耗时的矩阵逆操作转换成了频率域上的除法操作。当然，我们还需要额外的时间来求解$D^TD$的特征值，但因为这个值在迭代过程中是不变的，我们只需要求一次，而且这个值也可以通过傅立叶变换快速求解，因此额外开销其实很小。
+
+\subsection{代码实现}
+
+代码实现的难点和容易产生困惑的地方主要在x的优化上。
+
+\paragraph{$D^TD$特征值的计算}:
+
+回顾Fourier matrix可以对角化所有的circulant matrix，并且$F^H$的列向量就是这些circulant matrix的特征向量，特征值则是生成circulant matrix的信号的DFT结果。
+
+假设我们的卷积核$d=[1,-1]$，则$D$的特征值$\Lambda$可以使用下述Python代码进行计算：
+
+\begin{minted}{python}
+eigD = np.fft.fft([1, -1], length)
+\end{minted}
+
+fft在计算的时候先对$d$进行了一个padding，padding到和$y$一个长度再进行傅立叶变换，变换完之后得到一个一维向量，这个向量就是$vec(\Lambda)$\footnote{没有证明，如果觉得不可思议，可以看下附带的Jupyter Notebook确认一下。}。
+
+因为$eig(D^TD)=\Lambda^H\Lambda$, 且对一个复数，我们有$a^Ha = ||a||_2^2$，因此我们可以使用下述代码计算$eig(D^TD)$：
+
+\begin{minted}{python}
+eigDtD = abs(np.fft.fft([1, -1], length)) ** 2
+\end{minted}
+
+\paragraph{$\left( I +\rho \Lambda^H\Lambda \right)$的计算}：
+
+这个公式本来是一个单位阵加上一个特征值方阵，但因为我们代码求的特征值其实是放在一个向量里，所以我们可以直接用element-wise的加和乘来计算这个式子：
+
+\begin{minted}{python}
+lhs = 1 + rho * eigFtF
+\end{minted}
+
+\paragraph{$FD^T(z-\mu)$的计算}：
+
+普通的$FDx$就是用D对应的卷积核h对x做一个circular convolution，但$D^T$对应的卷积核是什么呢？
+
+在这个回答里\url{https://dsp.stackexchange.com/a/64587}提到了$D^T$对应的卷积核是原卷积核的flipped version，但经过实验，事实上并不完全是这样，除了flip卷积核，我们还需要circular shift一下x才可以。伪代码如下：
+
+\begin{minted}{matlab}
+H*x = ifft(fft(x).*fft(kernel, row, col));
+Ht*x = ifft(fft(circshift(x,[0,-1])).*fft(rot90(kernel,2), row, col));
+\end{minted}
+
+对于一维向量，如果kernel是行向量，则shift的大小是[0,-1]，如果是列向量，则是[-1,0]。
+
+\subsection{参数设置}
 
 ADMM 1D TV Denosing就两个超参数 $\lambda$ 和 $\rho$ ，参数设置基本不会影响大致结果，但是要注意的是$\rho$不要小于1，否则可能会造成x,z更新之后过大，出现INF。
+
+\section{ADMM 2D TV Denosing}
+
+对于2D TV Denosing问题, 我们有如下优化目标, 
+
+\begin{equation}
+	\operatorname{minimize} \enspace \frac{1}{2} \|x-y\|_{2}^{2} + \lambda\|D_r x\|_{1} + \lambda\|D_c x\|_{1}
+\end{equation}
+
+其中 $x$ 是向量化\footnote{向量化即按row major order将二维矩阵化为一维向量。}后的优化变量, $y$ 是向量化后的原始带噪声图像。2维的TV约束是横向梯度和纵向梯度的1范数，我们可以用两个卷积来求梯度，而$D_r$ 和 $D_c$ 则是将二维卷积用矩阵乘法表示的doubly block circulant matrices.
+
+用$ z_*$替换$D_* x$，并添加两个新的约束，可以得到ADMM形式：
+
+\begin{equation}
+\begin{array}{ll}
+\operatorname{minimize} & \frac{1}{2} \|x-y\|_{2}^{2} + \lambda\|z_r\|_{1} + \lambda\|z_c\|_{1} \\
+\text { subject to } & D_r x-z_r=0 \\
+\text { subject to } & D_c x-z_c=0
+\end{array}
+\end{equation}
+
+用增广朗格朗日法去掉约束：
+
+\begin{equation}
+\begin{aligned}
+L_{\rho}( x , z_r , \nu_r, z_c, \nu_c ) = \frac{1}{2}\|x-y\|_{2}^{2} &  + \lambda\|z_r\|_{1}+ \nu_r ^{ T }(D_r x-z_r)+\frac{\rho}{2}\|D_r x -z_r\|_{2}^{2} \\
+& + \lambda\|z_c\|_{1}+ \nu_c ^{ T }(D_c x-z_c)+\frac{\rho}{2}\|D_c x -z_c\|_{2}^{2}
+\end{aligned}
+\label{eq-2d-aug} 
+\end{equation}
+
+与1D TV类似(见公式 \ref{eq-sub-aug})，令$\mu_r = \nu_r / \rho$，$\mu_c = \nu_c / \rho$，我们可以将上述公式改写成下面的形式，。
+
+\begin{equation}
+\begin{aligned}
+L_{\rho}( x , z_r , \nu_r, z_c, \nu_c )= \frac{1}{2}\|x-y\|_{2}^{2} & + \lambda\|z_r\|_{1}+ \frac{\rho}{2}\|D_r x-z_r+ \mu_r \|_{2}^{2}-\frac{\rho}{2}\| \mu_r \|_{2}^{2} \\
+& + \lambda\|z_c\|_{1}+ \frac{\rho}{2}\|D_c x-z_c+ \mu_c \|_{2}^{2}-\frac{\rho}{2}\| \mu_c \|_{2}^{2}
+\end{aligned}
+\end{equation}
+
+因此，ADMM的分布优化步骤为：
+
+\begin{equation}
+\begin{aligned}
+x ^{(k+1)} &=\arg \min _{ x }\left(\frac{1}{2} \|x^{(k)} - y\|_{2}^{2}+\frac{\rho}{2}\left\| D_r x^{(k)} - z_r ^{(k)}+ \mu_r ^{(k)}\right\|_{2}^{2} +\frac{\rho}{2}\left\| D_c x^{(k)} - z_c ^{(k)}+ \mu_c ^{(k)}\right\|_{2}^{2} \right) \\
+z_r ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z_r^{(k)}\|_{1}+\frac{\rho}{2}\left\| D_r x ^{(k+1)}- z_r^{(k)} + \mu_r ^{(k)}\right\|_{2}^{2}\right) \\
+z_c ^{(k+1)} &=\arg \min _{ z }\left(\lambda\|z_c^{(k)}\|_{1}+\frac{\rho}{2}\left\| D_c x ^{(k+1)}- z_c^{(k)} + \mu_c ^{(k)}\right\|_{2}^{2}\right) \\
+\nu_r ^{(k+1)} &= \nu_r ^{(k)}+ D_r x ^{(k+1)}- z_r ^{(k+1)} \\
+\nu_c ^{(k+1)} &= \nu_c ^{(k)}+ D_c x ^{(k+1)}- z_c ^{(k+1)} \\
+\end{aligned}
+\label{eq-2d-opt-steps}
+\end{equation}
+
+\subsection{x subproblem}
+
+与1D TV一样，优化x可以看成是一个最小二乘问题。改写公式\ref{eq-2d-opt-steps}中x的目标函数，我们有：
+
+\begin{equation}
+\begin{aligned}
+x ^{(k+1)} =\arg \min _{ x } \enspace \|x^{(k)}-y\|_{2}^{2} & + \left\|\sqrt{\rho}D_r x^{(k)}- \sqrt{\rho}(z_r ^{(k)}- \mu_r ^{(k)})\right\|_{2}^{2} \\
+& + \left\|\sqrt{\rho}D_c x^{(k)}- \sqrt{\rho}(z_c ^{(k)}- \mu_c ^{(k)})\right\|_{2}^{2} 
+\end{aligned}
+\end{equation}
+
+写成矩阵形式：
+
+\begin{equation}
+\min _{x}\left\|\left[\begin{array}{c} 
+I \\
+\sqrt{\rho} D_r \\
+\sqrt{\rho} D_c \\
+\end{array}\right] x^{(k)} -\left[\begin{array}{c} 
+y \\
+\sqrt{\rho}\left( z_r ^{(k)}- \mu_r ^{(k)}\right) \\
+\sqrt{\rho}\left( z_c ^{(k)}- \mu_c ^{(k)}\right) \\
+\end{array}\right]\right\|_{2}^{2}
+\end{equation}
+
+代入$(X^TX)^{-1}X^TY$，得解析解：
+
+\begin{equation}
+\begin{aligned}
+x ^{(k+1)} &=\left( I +\rho (D_r^TD_r + D_c^TD_c) \right)^{-1}\left[ I, \sqrt{\rho} D_r^T, \sqrt{\rho} D_c^T \right]\left[\begin{array}{c} 
+y \\
+\left.\sqrt{\rho}\left( z_r ^{(k)}- \mu_r ^{(k)}\right)\right] \\
+\left.\sqrt{\rho}\left( z_c ^{(k)}- \mu_c ^{(k)}\right)\right] \\
+\end{array}\right] \\
+&=\left( I +\rho (D_r^TD_r + D_c^TD_c) \right)^{-1} \left( y + \rho \left[ D_r^T\left( z_r ^{(k)}- \mu_r ^{(k)}\right) + D_c^T\left( z_c ^{(k)}- \mu_c ^{(k)}\right) \right] \right)
+\end{aligned}
+\end{equation}
+
+\subsection{DFT Speedup}
+
+与一维类似，我们可以使用傅立叶变换进行优化，这里只列推导结果：
+
+\begin{equation}
+\begin{aligned}
+\left( \mathcal{F}I +\rho (\mathcal{F}D_r^TD_r + \mathcal{F}D_c^TF_c) \right) \mathcal{F}^H\mathcal{F} x ^{(k+1)} = LHS \\
+\text{=>} 
+\left( \mathcal{F}I\mathcal{F}^H +\rho (\mathcal{F}D_r^TD_r\mathcal{F}^H + \mathcal{F}D_c^TF_c\mathcal{F}^H) \right) \mathcal{F} x ^{(k+1)} = LHS	
+\end{aligned}
+\end{equation}
+
+\begin{equation}
+\left( I +\rho (\Lambda_r + \Lambda_c) \right) \mathcal{F} x ^{(k+1)} = \left( \mathcal{F}y + \rho \left[ \mathcal{F}D_r^T\left( z_r ^{(k)}- \mu_r ^{(k)}\right) + \mathcal{F}D_c^T\left( z_c ^{(k)}- \mu_c ^{(k)}\right) \right] \right) \\
+\end{equation}、
+
+\begin{equation}
+x ^{(k+1)} =  \mathcal{F}^{-1} \frac{\left( \mathcal{F}y + \rho \left[ \mathcal{F}D_r^T\left( z_r ^{(k)}- \mu_r ^{(k)}\right) + \mathcal{F}D_c^T\left( z_c ^{(k)}- \mu_c ^{(k)}\right) \right] \right)} {vec\left( I +\rho (\Lambda_r + \Lambda_c) \right)}
+\end{equation}
+
+\subsection{Implementation}
+
+2维的ADMM TV Denosing实现和一维类似，但需要注意的是，虽然公式里是将二维矩阵向量化进行推导，但我们在计算的时候并不需要这么做，我们可以直接在原二维矩阵上做运算。
+
+\paragraph{$eig(D_r^TD_r + D_c^TD_c)$的计算}：
+
+同样的，我们使用DFT来加速$\left( I +\rho (D_r^TD_r + D_c^TD_c) \right)^{-1}$的计算：
+
+\begin{minted}{python}
+eigDtD = np.abs(np.fft.fft2(np.array([[1, -1]]), (row, col))) ** 2 + \
+         np.abs(np.fft.fft2(np.array([[1, -1]]).transpose(), (row, col))) ** 2
+\end{minted}
+
+在这里，我们首先使用fft2求特征值。在原公式里，我们其实是要求一个$[row*col,row*col]$方阵，方阵的对角线上有row*col个特征值，然后我们需要将这个方阵取逆后与一个row*col长度的向量\footnote{即$\left( \mathcal{F}y + \rho \left[ \mathcal{F}D_r^T\left( z_r ^{(k)}- \mu_r ^{(k)}\right) + \mathcal{F}D_c^T\left( z_c ^{(k)}- \mu_c ^{(k)}\right) \right] \right)$}相乘。这个过程其实就是将原二维矩阵中的每个元素都除以一个它对应的特征值。
+
+fft2经过padding之后可以求出一个和原二维矩阵同样大小的矩阵，这个矩阵中的每个元素就是原二维矩阵元素对应的特征值\footnote{这是一个结论，证明我再找找，可以看下Jupyter Notebook的验证。}。
+
+\paragraph{$\mathcal{F}D_r^T\left( z_r ^{(k)}- \mu_r ^{(k)}\right) + \mathcal{F}D_c^T\left( z_c ^{(k)}- \mu_c ^{(k)}\right)$的计算}：
+
+参考一维情况，$FD^T(z-\mu)$是一个二维卷积操作，$D^T$对应的卷积核是$D$对应的卷积核的flipped version，输入同样需要circular shift，shift的大小是[-1,-1]。
+
+\chapter{Resources}
+
+如果你看完这个Tutorial，还是有不明白的地方，这里总结了本文撰写时参考的一些资料，包括论文，公开课的slide，视频，开源代码等等。
+
+\section{Papers \&\& Notes \&\& Slides}
+
+有关ADMM的论文很多，但大部分对于初学者都不太友好，一些在论文作者看来显然的东西，对初学者可能并不显然，而且限于论文篇幅以及侧重，大部分论文并不会详细解释ADMM的细节。
+
+初学者最好看下CMU Convex Optimization 10-725 / 36-725的这个Introduction：\url{https://www.cs.cmu.edu/~ggordon/10725-F12/slides/01-intro-ryan.pdf}。这个Slide对于优化问题是什么，各种优化算法的作用，优点进行了介绍，而且还有图片作为例子。看完这个Slide，应该可以对优化问题，以及ADMM有一点基本的感觉。
+
+论文的话其实需要看的不多，应该看了也看不出什么名堂，主要还是课程的slide和lecture note比较有用。
+
+\begin{itemize}
+	\item 看完CMU的那个Slide，可以看下这篇One Network to Solve Them All\cite{chang2017network}，可以从Introduction开始，除了实验都看。
+	\item 然后可以看下这篇的Introduction，Plug-and-Play ADMM for Image Restoration\cite{chan2016plugandplay}。
+	\item 这篇Decoupled Algorithm for MRI Reconstruction Using Nonlocal Block Matching Model: BM3D-MRI\cite{Eksioglu2016Decoupled}，第三章3 BM3D-MRI Formulation中将傅立叶变换优化那段很有用。
+\end{itemize}
+
+\paragraph{有几个Lecture Notes特别有用}: 
+
+\begin{itemize}
+	\item Stanford ee367的一个Notes，有讲傅立叶变换优化：\url{https://stanford.edu/class/ee367/reading/lecture6_notes.pdf}
+	\item 强推Gatech的一个Lecture Notes，详细讲了如何将x subproblem转换成least square problem，以及z subproblem需要的soft thresholding是怎么回事：\url{http://mdav.ece.gatech.edu/ece-8823-spring2019/notes/16-admm.pdf}
+\end{itemize}
+
+\section{Web}
+
+\paragraph{关于对角化Circular Matrix}：
+
+\begin{itemize}
+	\item Circular Convolution Matrix of $H^HH$：\url{https://dsp.stackexchange.com/a/56721}
+	\item 关于Diagonalization of circulant matrices的证明：\url{https://math.stackexchange.com/a/3207584}
+\end{itemize}
+
+\paragraph{关于Convolution}：
+
+\begin{itemize}
+	\item Meaning of the Transpose of Convolution: \url{https://dsp.stackexchange.com/a/64587}
+	\item 如果你不明白2D Circular Convolution怎么做的，看看这个：\url{https://dsp.stackexchange.com/a/56021}
+\end{itemize}
+
+\section{Videos}
+
+只推荐一个视频：Lecture 19: Case Study: Generalized Lasso Problems (\url{https://www.youtube.com/watch?v=A8qJDwO-bnE})
+
+\section{Code}
+
+ADMM TV 1D的代码比较多，2D的代码有一些，但通常都没有解释，找不到对应公式，可能比较难懂。
+
+\begin{itemize}
+	\item 1D TV，用的求矩阵逆的方法：\url{https://web.stanford.edu/~boyd/papers/admm/total_variation/total_variation.html}
+	\item 强推这个Github仓库，有很多算法，2D TV，1D TV都有：\url{https://github.com/tarmiziAdam2005/Image-Signal-Processing}
+	\item 这个PnP ADMM的Matlab包也很不错（论文\cite{chan2016plugandplay}的源代码）：\url{https://www.mathworks.com/matlabcentral/fileexchange/60641-plug-and-play-admm-for-image-restoration}
+\end{itemize}
 
 \printbibliography
 
