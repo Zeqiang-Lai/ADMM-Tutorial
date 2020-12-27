@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from tv1d_admm import admm_tv_1d
+from denoise_1d.tv1d_admm import admm_tv_1d
 
 INF = 9999999999
 

@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 
 
@@ -8,16 +7,18 @@ def PSNR(x, gt, data_range=1):
 
 
 def forward_diff(u):
-    dux = np.column_stack([np.diff(u, axis=1), u[:, 0] - u[:, -1]])
-    duy = np.row_stack([np.diff(u, axis=0), u[0, :] - u[-1, :]])
+    dux = np.column_stack([u[:, 0] - u[:, -1], np.diff(u, axis=1)])
+    duy = np.row_stack([u[0, :] - u[-1, :], np.diff(u, axis=0)])
     return dux, duy
 
 
 def dive(x, y):
     dx = np.diff(x, axis=1)
     dy = np.diff(y, axis=0)
-    dtxy = np.column_stack([x[:, -1] - x[:, 0], -dx])
-    dtxy = dtxy + np.row_stack([y[-1, :] - y[0, :], -dy])
+    # dtxy = np.column_stack([x[:, -1] - x[:, 0], -dx])
+    # dtxy = dtxy + np.row_stack([y[-1, :] - y[0, :], -dy])
+    dtxy = np.column_stack([-dx, x[:, -1] - x[:, 0]])
+    dtxy = dtxy + np.row_stack([-dy, y[-1, :] - y[0, :]])
     return dtxy
 
 
@@ -31,7 +32,7 @@ def shrink(x, r):
     return np.sign(x) * np.maximum(np.abs(x) - r, 0)
 
 
-def admm(y, lam, rho, Nit, tol=1e-5):
+def admm(y, lam, rho, Nit, tol=1e-4, logging=True):
     row, col = y.shape
     x = y
     alpha = 0.7
@@ -45,20 +46,24 @@ def admm(y, lam, rho, Nit, tol=1e-5):
              np.abs(np.fft.fft2(np.array([[1, -1]]).transpose(), (row, col))) ** 2
 
     D, Dt = defDDt()
-    Dx1, Dx2 = D(x)
 
-    curNorm = np.linalg.norm(Dx1 - v1) + \
-              np.linalg.norm(Dx2 - v2)
+    # curNorm = np.linalg.norm(Dx1 - v1) + np.linalg.norm(Dx2 - v2)
+
+    if logging:
+        print('ADMM --- 2D TV Denoising')
+        print('itr \t ||x-xold||')
 
     imgs = []
 
+    last_iter = Nit
     for k in range(Nit):
         imgs.append(x)
         x_old = x
-        ty1 = y1 / rho + v1
-        ty2 = y2 / rho + v2
+
+        ty1 = v1 - y1 / rho
+        ty2 = v2 - y2 / rho
         tmp = Dt(ty1, ty2)
-        rhs = y - rho * tmp
+        rhs = y + rho * tmp
         lhs = 1 + rho * eigDtD
 
         x = np.fft.fft2(rhs) / lhs
@@ -66,27 +71,27 @@ def admm(y, lam, rho, Nit, tol=1e-5):
 
         Dx1, Dx2 = D(x)
 
-        u1 = Dx1 + y1 / rho
-        u2 = Dx2 + y2 / rho
+        v1 = shrink(Dx1 + y1 / rho, lam / rho)
+        v2 = shrink(Dx2 + y2 / rho, lam / rho)
 
-        v1 = shrink(u1, lam / rho)
-        v2 = shrink(u2, lam / rho)
+        y1 = y1 + Dx1 - v1
+        y2 = y2 + Dx2 - v2
 
-        y1 = y1 + rho * (Dx1 - v1)
-        y2 = y2 + rho * (Dx2 - v2)
-
-        normOld = curNorm
-        curNorm = np.linalg.norm(Dx1 - v1) + \
-                  np.linalg.norm(Dx2 - v2)
+        # normOld = curNorm
+        # curNorm = np.linalg.norm(Dx1 - v1) + np.linalg.norm(Dx2 - v2)
         #
         # if curNorm > alpha * normOld:
         #     rho = 0.5 * rho
         #
-        # relError = np.linalg.norm(x - x_old) / np.linalg.norm(x)
-        # if relError < tol:
-        #     break
+        rel_error = np.linalg.norm(x - x_old) / np.linalg.norm(x)
+        if logging:
+            print('%3g \t %3.5e' % (k, rel_error))
 
-    return x
+        if rel_error < tol:
+            last_iter = k + 1
+            break
+
+    return x, last_iter
 
 
 if __name__ == '__main__':
@@ -102,7 +107,7 @@ if __name__ == '__main__':
     plt.subplot(1, 3, 2)
     plt.imshow(g, cmap='gray')
 
-    out = admm(g, lam=20, rho=2, Nit=20)
+    out, _ = admm(g, lam=15, rho=200, Nit=100, logging=True)
 
     plt.subplot(1, 3, 3)
     plt.imshow(np.array(out, dtype=np.int), cmap='gray')

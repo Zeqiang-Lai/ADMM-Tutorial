@@ -66,7 +66,7 @@ if __name__ == '__main__':
     from PIL import Image
     from torchvision.transforms import ToTensor
 
-    img = Image.open('test.png')
+    img = Image.open('testsets/test.png')
     img = img.convert("RGB")
     img = ToTensor()(img)
     print(img.shape)

@@ -1,7 +1,4 @@
-import matplotlib.pyplot as plt
 import numpy as np
-
-from scipy.sparse import spdiags
 
 INF = 9999999999
 
@@ -10,8 +7,9 @@ def get_difference_matrix(n, row, col):
     f = np.zeros((n, n))
     for i in range(n):
         f[i, i] = 1
-        f[i, i + 1] = -1
-        if i < n - col:
+        if i + 1 < n:
+            f[i, i + 1] = -1
+        if i + col < n:
             f[i, i + col] = -1
     return f
 
@@ -95,7 +93,7 @@ if __name__ == '__main__':
     plt.subplot(1, 3, 2)
     plt.imshow(g, cmap='gray')
 
-    out = admm_tv_2d_flat(g, lmbda=5, rho=1, max_itr=100)
+    out = admm_tv_2d_flat(g, lmbda=5, rho=1, max_itr=2)
 
     plt.subplot(1, 3, 3)
     plt.plot(out)
