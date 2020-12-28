@@ -2,3 +2,5 @@
 /.ipynb_checkpoints/
 .idea
 /tutorial/_minted-admm-tutorial/
+/code/testsets
+/code/experiment
